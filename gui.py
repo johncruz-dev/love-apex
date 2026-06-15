@@ -1,0 +1,6 @@
+"""Launch the graphical calculator."""
+
+from calculator.ui import run_gui
+
+if __name__ == "__main__":
+    run_gui()
