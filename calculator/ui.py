@@ -19,14 +19,18 @@ class CalculatorUI:
     FG = "#ececec"
     FG_DIM = "#a0a0b8"
 
+    DISPLAY_HEIGHT = 96
+
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.engine = CalculatorEngine()
         self.expression = ""
+        self._last_expression = ""
 
         root.title("Expert Calculator")
         root.configure(bg=self.BG)
         root.resizable(False, False)
+        root.geometry("340x520")
 
         self._build_display()
         self._build_buttons()
@@ -35,6 +39,14 @@ class CalculatorUI:
         display_frame = tk.Frame(self.root, bg=self.BG, padx=12, pady=12)
         display_frame.pack(fill="x")
 
+        panel = tk.Frame(
+            display_frame,
+            bg=self.DISPLAY_BG,
+            height=self.DISPLAY_HEIGHT,
+        )
+        panel.pack(fill="x")
+        panel.pack_propagate(False)
+
         expr_font = tkfont.Font(family="Consolas", size=14)
         result_font = tkfont.Font(family="Consolas", size=28, weight="bold")
 
@@ -42,29 +54,33 @@ class CalculatorUI:
         self.result_var = tk.StringVar(value="0")
 
         tk.Label(
-            display_frame,
+            panel,
             textvariable=self.expr_var,
             anchor="e",
             bg=self.DISPLAY_BG,
             fg=self.FG_DIM,
             font=expr_font,
             padx=16,
-            pady=(12, 4),
+            pady=8,
+            height=1,
+            wraplength=300,
         ).pack(fill="x")
 
         tk.Label(
-            display_frame,
+            panel,
             textvariable=self.result_var,
             anchor="e",
             bg=self.DISPLAY_BG,
             fg=self.FG,
             font=result_font,
             padx=16,
-            pady=(4, 12),
+            pady=8,
+            height=1,
+            wraplength=300,
         ).pack(fill="x")
 
     def _build_buttons(self) -> None:
-        pad = tk.Frame(self.root, bg=self.BG, padx=12, pady=(0, 12))
+        pad = tk.Frame(self.root, bg=self.BG, padx=12, pady=12)
         pad.pack()
 
         btn_font = tkfont.Font(family="Segoe UI", size=13)
@@ -149,6 +165,7 @@ class CalculatorUI:
     def _on_button(self, action: str) -> None:
         if action == "CLEAR":
             self.expression = ""
+            self._last_expression = ""
             self.expr_var.set("")
             self.result_var.set("0")
             return
@@ -162,6 +179,15 @@ class CalculatorUI:
             self._evaluate()
             return
 
+        # After a result, digits and "." start a fresh number.
+        if (
+            self._last_expression
+            and self.expression == self._last_expression
+            and (action in {".",} or (len(action) == 1 and action.isdigit()))
+        ):
+            self.expression = ""
+            self._last_expression = ""
+
         self.expression += action
         self.expr_var.set(self.expression)
 
@@ -169,14 +195,19 @@ class CalculatorUI:
         if not self.expression.strip():
             return
 
+        submitted = self.expression
         try:
-            result = self.engine.evaluate(self.expression)
-            self.result_var.set(self._format_result(result))
+            result = self.engine.evaluate(submitted)
+            formatted = self._format_result(result)
+            self.expr_var.set(submitted)
+            self.result_var.set(formatted)
             self.expression = str(result)
-            self.expr_var.set("")
+            self._last_expression = self.expression
         except CalculatorError as exc:
+            self.expr_var.set(submitted)
             self.result_var.set(f"Error: {exc}")
             self.expression = ""
+            self._last_expression = ""
 
     @staticmethod
     def _format_result(value: float) -> str:
